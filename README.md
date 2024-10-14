@@ -12,14 +12,9 @@ We will configure Flux to install, test and upgrade a demo app using
 Flux will monitor the Helm repository, and it will automatically
 upgrade the Helm releases to their latest chart version based on semver ranges.
 
-![flux-ui-apps.png](.github/screens/flux-ui-apps.png)
-
-On each cluster, we'll install [Weave GitOps](https://docs.gitops.weave.works/) (an OSS UI for Flux)
-to visualise and monitor the workloads managed by Flux.
-
 ## Prerequisites
 
-You will need a Kubernetes cluster version 1.21 or newer.
+You will need a Kubernetes cluster version 1.28 or newer.
 For a quick local test, you can use [Kubernetes kind](https://kind.sigs.k8s.io/docs/user/quick-start/).
 Any other Kubernetes setup will work as well though.
 
@@ -27,7 +22,7 @@ In order to follow the guide you'll need a GitHub account and a
 [personal access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line)
 that can create repositories (check all permissions under `repo`).
 
-Install the Flux CLI on MacOS or Linux using Homebrew:
+Install the Flux CLI on macOS or Linux using Homebrew:
 
 ```sh
 brew install fluxcd/tap/flux
@@ -87,7 +82,7 @@ The apps configuration is structured into:
 In **apps/base/podinfo/** dir we have a Flux `HelmRelease` with common values for both clusters:
 
 ```yaml
-apiVersion: helm.toolkit.fluxcd.io/v2beta1
+apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
   name: podinfo
@@ -111,7 +106,7 @@ spec:
 In **apps/staging/** dir we have a Kustomize patch with the staging specific values:
 
 ```yaml
-apiVersion: helm.toolkit.fluxcd.io/v2beta1
+apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
   name: podinfo
@@ -133,7 +128,7 @@ the `HelmRelease` to the latest chart version including alpha, beta and pre-rele
 In **apps/production/** dir we have a Kustomize patch with the production specific values:
 
 ```yaml
-apiVersion: helm.toolkit.fluxcd.io/v2beta1
+apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
   name: podinfo
@@ -162,19 +157,17 @@ The infrastructure is structured into:
 ./infrastructure/
 ├── configs
 │   ├── cluster-issuers.yaml
-│   ├── network-policies.yaml
 │   └── kustomization.yaml
 └── controllers
     ├── cert-manager.yaml
     ├── ingress-nginx.yaml
-    ├── weave-gitops.yaml
     └── kustomization.yaml
 ```
 
 In **infrastructure/controllers/** dir we have the Flux `HelmRepository` and `HelmRelease` definitions such as:
 
 ```yaml
-apiVersion: helm.toolkit.fluxcd.io/v2beta1
+apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
   name: cert-manager
@@ -315,7 +308,6 @@ $ watch flux get helmreleases --all-namespaces
 
 NAMESPACE    	NAME         	REVISION	SUSPENDED	READY	MESSAGE 
 cert-manager 	cert-manager 	v1.11.0 	False    	True 	Release reconciliation succeeded
-flux-system  	weave-gitops 	4.0.12   	False    	True 	Release reconciliation succeeded
 ingress-nginx	ingress-nginx	4.4.2   	False    	True 	Release reconciliation succeeded
 podinfo      	podinfo      	6.3.0   	False    	True 	Release reconciliation succeeded
 ```
@@ -355,48 +347,6 @@ flux-system      	main/696182e	False    	True 	Applied revision: main/696182e
 infra-configs    	main/696182e	False    	True 	Applied revision: main/696182e	
 infra-controllers	main/696182e	False    	True 	Applied revision: main/696182e	
 ```
-
-### Access the Flux UI
-
-To access the Flux UI on a cluster, first start port forwarding with:
-
-```sh
-kubectl -n flux-system port-forward svc/weave-gitops 9001:9001
-```
-
-Navigate to http://localhost:9001 and login using the username `admin` and the password `flux`.
-
-[Weave GitOps](https://docs.gitops.weave.works/) provides insights into your application deployments,
-and makes continuous delivery with Flux easier to adopt and scale across your teams.
-The GUI provides a guided experience to build understanding and simplify getting started for new users;
-they can easily discover the relationship between Flux objects and navigate to deeper levels of information as required.
-
-![flux-ui-depends-on](.github/screens/flux-ui-depends-on.png)
-
-You can change the admin password bcrypt hash in **infrastructure/controllers/weave-gitops.yaml**:
-
-```yaml
-apiVersion: helm.toolkit.fluxcd.io/v2beta1
-kind: HelmRelease
-metadata:
-  name: weave-gitops
-  namespace: flux-system
-spec:
-  # ...omitted for brevity
-  values:
-    adminUser:
-      create: true
-      username: admin
-      # bcrypt hash for password "flux"
-      passwordHash: "$2a$10$P/tHQ1DNFXdvX0zRGA8LPeSOyb0JXq9rP3fZ4W8HGTpLV7qHDlWhe"
-```
-
-To generate a bcrypt hash please see Weave GitOps
-[documentation](https://docs.gitops.weave.works/docs/configuration/securing-access-to-the-dashboard/#login-via-a-cluster-user-account). 
-
-Note that on production systems it is recommended to expose Weave GitOps over TLS with an ingress controller and
-to enable OIDC authentication for your organisation members.
-To configure OIDC with Dex and GitHub please see this [guide](https://docs.gitops.weave.works/docs/guides/setting-up-dex/).
 
 ## Add clusters
 
